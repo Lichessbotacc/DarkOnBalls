@@ -124,7 +124,7 @@ input[type=text],input[type=number]{padding:12px 18px;font-size:18px;border-radi
 
       <div style="display: flex; flex-direction: column; align-items: center; flex-shrink: 0;">
         <h1>DarkOnBalls</h1>
-        <button onclick="showScreen('onlineFlow')">🌐 Online 1v1</button>
+        <button onclick="showOnlineFlow()">🌐 Online 1v1</button>
         <button onclick="startOnlineTV()">📺 Best Online TV</button>
         <button onclick="startGame('single')">Singleplayer</button>
         <button onclick="startGame('multi')">Multiplayer (local)</button>
@@ -177,9 +177,9 @@ input[type=text],input[type=number]{padding:12px 18px;font-size:18px;border-radi
     <div id="onlineWait">
       <h2>🌐 Online 1v1</h2>
       <div id="onlineStatus">Searching for opponent…</div>
-     <div style="font-size:13px;opacity:0.8;margin-top:6px;">
-  Matchmaking may take up to 10 seconds. If no opponent is available, you'll automatically be paired with our Online Bot.
-</div>
+      <div style="font-size:13px;opacity:0.8;margin-top:6px;">
+        Matchmaking may take up to 10 seconds. If no opponent is available, you'll automatically be paired with our Online Bot.
+      </div>
       <div id="onlineSearchAnim" style="font-size:40px;margin:10px 0;">⏳</div>
       <button onclick="cancelOnline()">Cancel</button>
     </div>
@@ -220,20 +220,20 @@ input[type=text],input[type=number]{padding:12px 18px;font-size:18px;border-radi
     <div id="coinHUD">🪙 <span id="coinScore">0</span> &nbsp;|&nbsp; ⏱ <span id="coinTime">60</span>s</div>
     <div id="pingDisplay">📶 -- ms</div>
     <div id="onlineHUD">
-  <div class="online-names">
-    <div style="display:flex;align-items:center;gap:6px;">
-      <span id="onlineNameMe" style="color:#00ff88">Me</span>
-      <span id="onlineRankMe" style="color:#ffd700;font-size:13px;">(#-)</span>
+      <div class="online-names">
+        <div style="display:flex;align-items:center;gap:6px;">
+          <span id="onlineNameMe" style="color:#00ff88">Me</span>
+          <span id="onlineRankMe" style="color:#ffd700;font-size:13px;">(#-)</span>
+        </div>
+        <span style="color:#aaa">VS</span>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <span id="onlineNameOpp" style="color:#ff8844">Opp</span>
+          <span id="onlineRankOpp" style="color:#ffd700;font-size:13px;">(#-)</span>
+        </div>
+      </div>
+      <div id="onlineScoreHUD" style="font-size: 22px; font-weight: bold; margin-top: 6px; color: #ffd700; text-align: center;">0 - 0</div>
+      <div id="onlineStatusHUD" style="color:#aaa;font-size:13px;margin-top:4px;">Connecting…</div>
     </div>
-    <span style="color:#aaa">VS</span>
-    <div style="display:flex;align-items:center;gap:6px;">
-      <span id="onlineNameOpp" style="color:#ff8844">Opp</span>
-      <span id="onlineRankOpp" style="color:#ffd700;font-size:13px;">(#-)</span>
-    </div>
-  </div>
-  <div id="onlineScoreHUD" style="font-size: 22px; font-weight: bold; margin-top: 6px; color: #ffd700; text-align: center;">0 - 0</div>
-  <div id="onlineStatusHUD" style="color:#aaa;font-size:13px;margin-top:4px;">Connecting…</div>
-</div>
 
     <div id="opponentInfo"><div id="opponentText"></div></div>
     <div id="spectatorInfo"><b>👁 Spectator Mode</b><br><div id="spectatorText"></div></div>
@@ -259,8 +259,6 @@ const stage   = document.getElementById("stage");
 const gameWrap= document.getElementById("gameWrap");
 const canvas  = document.getElementById("game");
 const ctx     = canvas.getContext("2d");
-
-let scale = 1;
 
 function W() { return V_W; }
 function H() { return V_H; }
@@ -334,7 +332,6 @@ async function getHeadToHeadScore(p1, p2) {
   return score || { [p1]: 0, [p2]: 0 };
 }
 
-// FIXED: Update player status in Firebase
 async function updatePlayerStatus(statusText) {
   if (!fbReady || !onlineAccount) return;
   await dbUpdate(`players/${onlineAccount.name}`, {
@@ -343,7 +340,6 @@ async function updatePlayerStatus(statusText) {
   });
 }
 
-// FIXED: Enhanced online players panel with dynamic status
 let menuPresenceUnsubscribe = null;
 function startMenuPresenceListener() {
   if (menuPresenceUnsubscribe) { menuPresenceUnsubscribe(); menuPresenceUnsubscribe = null; }
@@ -365,8 +361,6 @@ function startMenuPresenceListener() {
     let html = "<b>🟢 Active Players:</b><div style='margin-top: 8px; display:flex; flex-direction:column; gap:6px;'>";
     activeList.forEach(p => {
       const isMe = onlineAccount && p.name === onlineAccount.name;
-      
-      // ENHANCED: Dynamic status with icons and colors
       let statusText = p.status || "Idle in Menu";
       let statusColor = "#ffd700";
       
@@ -459,33 +453,6 @@ async function pushAccountToFirebase() {
   });
 }
 
-async function changeUsername(newName) {
-  if (!fbReady || !onlineAccount) return;
-  newName = newName.trim();
-  if (newName.length < 2) { alert("Name must be at least 2 characters."); return; }
-  if (!/^[a-zA-Z0-9_-]+$/.test(newName)) { alert("Only letters, numbers, _ and - allowed."); return; }
-  const oldName = onlineAccount.name;
-  if (oldName === newName) return;
-  const existing = await dbGet("players/" + newName);
-  if (existing) { alert("This name is already taken!"); return; }
-  await dbRemove("players/" + oldName);
-  onlineAccount.name = newName;
-  saveAccountLocal();
-  await pushAccountToFirebase();
-  alert("Name successfully changed!");
-  if (document.getElementById("leaderboardScreen").style.display === "flex") {
-    loadLeaderboard();
-  }
-}
-
-window.triggerNameChange = function() {
-  if (!onlineAccount) { alert("You need to create an account first!"); return; }
-  const newName = prompt("Enter your new username:", onlineAccount.name);
-  if (newName !== null && newName.trim() !== "") {
-    changeUsername(newName);
-  }
-};
-
 // ═══════════════════════════════════════════════
 //  SETTINGS
 // ═══════════════════════════════════════════════
@@ -510,13 +477,11 @@ function saveSettings() {
   showScreen("menu");
 }
 
-// FIX: Back from settings without saving
 function backFromSettings() {
   document.getElementById("settings").style.display = "none";
   document.getElementById("menu").style.display = "flex";
 }
 
-// FIX: Reset record
 function resetRecord() {
   if (confirm("Reset your survival record?")) {
     record = 0;
@@ -525,30 +490,12 @@ function resetRecord() {
   }
 }
 
-// FIX: Back to menu from game over
-function backToMenu() {
-  clearAllTimers();
-  if (onlineSearchInterval) { clearInterval(onlineSearchInterval); onlineSearchInterval = null; }
-  running = false;
-  balls = [];
-  players = [];
-  document.getElementById("gameOver").style.display = "none";
-  document.getElementById("menu").style.display = "flex";
-  document.getElementById("eloTable").style.display = "none";
-  document.getElementById("spectatorInfo").style.display = "none";
-  document.getElementById("coinHUD").style.display = "none";
-  document.getElementById("onlineHUD").style.display = "none";
-  if (fbReady && onlineAccount) {
-    updatePlayerStatus("Idle in Menu");
-  }
-}
-
 // ═══════════════════════════════════════════════
 //  STATE
 // ═══════════════════════════════════════════════
 let balls = [], players = [], ranking = [], eliminated = [];
 let running = false, startTime = 0;
-let spawnTimeoutId = null, survivalIntervalId = null, coinIntervalId = null;
+let spawnTimeoutId = null, survivalIntervalId = null, coinIntervalId = null, gameLoopId = null;
 let mode = "single";
 let tournamentRounds = 100, currentRound = 1;
 let participants = [], matches = [], waitingQueue = [];
@@ -590,27 +537,6 @@ document.getElementById("record").textContent = record;
 let matchBanner = null;
 
 // ═══════════════════════════════════════════════
-//  HOME / EXIT
-// ═══════════════════════════════════════════════
-function confirmHome() {
-  if (confirm("Return to main menu?")) exitToMenu();
-}
-
-function exitToMenu() {
-  cleanupOnline();
-  setTimeout(() => {
-    window.location.reload();
-  }, 150);
-}
-
-function clearAllTimers() {
-  if (spawnTimeoutId)     { clearTimeout(spawnTimeoutId);      spawnTimeoutId     = null; }
-  if (survivalIntervalId) { clearInterval(survivalIntervalId); survivalIntervalId = null; }
-  if (coinIntervalId)     { clearInterval(coinIntervalId);     coinIntervalId     = null; }
-  if (onlineBotMatchTimeout) { clearTimeout(onlineBotMatchTimeout); onlineBotMatchTimeout = null; }
-}
-
-// ═══════════════════════════════════════════════
 //  SCREEN MANAGEMENT
 // ═══════════════════════════════════════════════
 function showScreen(id) {
@@ -621,31 +547,462 @@ function showScreen(id) {
   });
 }
 
-// ═══════════════════════════════════════════════
-//  LEADERBOARD
-// ═══════════════════════════════════════════════
-async function loadLeaderboard() {
+function showOnlineFlow() {
   if (!fbReady) { alert("Firebase not ready"); return; }
-  const players = await dbGet("players");
-  if (!players) return;
-  const list = Object.values(players).filter(p => p.name);
-  list.sort((a,b) => (b.elo || 1500) - (a.elo || 1500));
-  const table = document.getElementById("lbTable");
-  let html = `<div class="lb-row"><span>Rank</span><span>Name</span><span>ELO</span><span>W/L</span></div>`;
-  list.forEach((p, i) => {
-    const isMe = onlineAccount && p.name === onlineAccount.name;
-    html += `<div class="lb-row ${isMe ? 'lb-me' : ''}">
-      <span>#${i+1}</span>
-      <span>${p.name}</span>
-      <span>${p.elo || 1500}</span>
-      <span>${p.wins || 0}/${p.losses || 0}</span>
-    </div>`;
-  });
-  table.innerHTML = html;
+  if (!onlineAccount) {
+    const name = prompt("Enter your username for online play:", "Player" + Math.floor(Math.random() * 1000));
+    if (!name) return;
+    onlineAccount = {
+      name: name.trim(),
+      elo: 1500,
+      wins: 0,
+      losses: 0,
+      highestElo: 1500,
+      lowestElo: 1500,
+      currentStreak: 0,
+      bestStreak: 0,
+      totalEloGained: 0,
+      totalEloLost: 0,
+      bestWinChange: 0,
+      bestWinOpp: "",
+      worstLossChange: 0,
+      worstLossOpp: ""
+    };
+    saveAccountLocal();
+    pushAccountToFirebase();
+  }
+  showScreen("onlineWait");
+  updatePlayerStatus("Searching for opponent");
+  startOnlineMatchmaking();
 }
 
 // ═══════════════════════════════════════════════
-//  GAME START FUNCTIONS
+//  ONLINE MATCHMAKING
+// ═══════════════════════════════════════════════
+function startOnlineMatchmaking() {
+  cleanupOnline();
+  onlineSearchStartTime = Date.now();
+  onlineSearchInterval = setInterval(searchForMatch, 1000);
+  
+  // Auto-bot after 10 seconds
+  onlineBotMatchTimeout = setTimeout(() => {
+    if (onlineSearchInterval) {
+      clearInterval(onlineSearchInterval);
+      onlineSearchInterval = null;
+      startBotMatch();
+    }
+  }, 10000);
+}
+
+async function searchForMatch() {
+  if (!fbReady) return;
+  // Look for open match
+  const matches = await dbGet("onlineMatches");
+  if (!matches) return;
+  
+  const openMatches = Object.entries(matches).filter(([id, m]) => 
+    m.status === "waiting" && m.host !== onlineAccount.name
+  );
+  
+  if (openMatches.length > 0) {
+    // Join existing match
+    const [matchId, matchData] = openMatches[0];
+    await joinOnlineMatch(matchId, matchData);
+  } else {
+    // Create new match as host
+    await createOnlineMatch();
+  }
+}
+
+async function createOnlineMatch() {
+  const matchId = "m_" + Date.now() + "_" + Math.random().toString(36).substr(2, 4);
+  await dbSet(`onlineMatches/${matchId}`, {
+    host: onlineAccount.name,
+    hostElo: onlineAccount.elo,
+    status: "waiting",
+    created: Date.now(),
+    players: [onlineAccount.name]
+  });
+  
+  // Listen for opponent joining
+  const unsub = dbOn(`onlineMatches/${matchId}`, async (data) => {
+    if (!data) return;
+    if (data.status === "started" && data.players && data.players.length >= 2) {
+      cleanupOnline();
+      startOnlineMatch(matchId, "host", data.players[1]);
+    }
+  });
+  onlineUnsubscribes.push(unsub);
+  onlineMatchId = matchId;
+  onlineIsHost = true;
+  updatePlayerStatus("Hosting match (waiting)");
+}
+
+async function joinOnlineMatch(matchId, matchData) {
+  await dbUpdate(`onlineMatches/${matchId}`, {
+    status: "started",
+    players: [...matchData.players, onlineAccount.name],
+    guestElo: onlineAccount.elo,
+    started: Date.now()
+  });
+  
+  startOnlineMatch(matchId, "guest", matchData.host);
+}
+
+async function startBotMatch() {
+  onlineVsBot = true;
+  onlineOpponent = {
+    name: "Online Bot",
+    elo: onlineBotElo
+  };
+  showScreen("vsScreen");
+  document.getElementById("vsName1").textContent = onlineAccount.name;
+  document.getElementById("vsElo1").textContent = "ELO " + onlineAccount.elo;
+  document.getElementById("vsName2").textContent = "Online Bot";
+  document.getElementById("vsElo2").textContent = "ELO " + onlineBotElo;
+  
+  let countdown = 3;
+  document.getElementById("vsCountdown").textContent = "Starting in " + countdown + "…";
+  const cd = setInterval(() => {
+    countdown--;
+    if (countdown <= 0) {
+      clearInterval(cd);
+      document.getElementById("vsScreen").style.display = "none";
+      startOnlineGame(true);
+    } else {
+      document.getElementById("vsCountdown").textContent = "Starting in " + countdown + "…";
+    }
+  }, 1000);
+}
+
+function startOnlineMatch(matchId, role, opponentName) {
+  onlineMatchId = matchId;
+  onlineRole = role;
+  onlineOpponent = { name: opponentName };
+  
+  // Get opponent ELO
+  dbGet("players/" + opponentName).then(data => {
+    if (data) onlineOpponent.elo = data.elo || 1500;
+  });
+  
+  showScreen("vsScreen");
+  document.getElementById("vsName1").textContent = onlineAccount.name;
+  document.getElementById("vsElo1").textContent = "ELO " + onlineAccount.elo;
+  document.getElementById("vsName2").textContent = opponentName;
+  document.getElementById("vsElo2").textContent = "ELO " + (onlineOpponent.elo || "?");
+  
+  let countdown = 3;
+  document.getElementById("vsCountdown").textContent = "Starting in " + countdown + "…";
+  const cd = setInterval(() => {
+    countdown--;
+    if (countdown <= 0) {
+      clearInterval(cd);
+      document.getElementById("vsScreen").style.display = "none";
+      startOnlineGame(false);
+    } else {
+      document.getElementById("vsCountdown").textContent = "Starting in " + countdown + "…";
+    }
+  }, 1000);
+}
+
+function cancelOnline() {
+  cleanupOnline();
+  showScreen("menu");
+  updatePlayerStatus("Idle in Menu");
+}
+
+function cleanupOnline() {
+  if (onlineSearchInterval) { clearInterval(onlineSearchInterval); onlineSearchInterval = null; }
+  if (onlineBotMatchTimeout) { clearTimeout(onlineBotMatchTimeout); onlineBotMatchTimeout = null; }
+  for (const unsub of onlineUnsubscribes) {
+    try { unsub(); } catch(e) {}
+  }
+  onlineUnsubscribes = [];
+  onlineMatchId = null;
+  onlineRole = null;
+  onlineOpponent = null;
+  onlineResultHandled = false;
+  onlineIsHost = false;
+  onlineVsBot = false;
+  // Remove match from Firebase if host
+  if (onlineMatchId && onlineIsHost) {
+    dbRemove("onlineMatches/" + onlineMatchId);
+  }
+  onlineMatchId = null;
+}
+
+// ═══════════════════════════════════════════════
+//  ONLINE GAME
+// ═══════════════════════════════════════════════
+function startOnlineGame(vsBot) {
+  document.getElementById("homeBtn").style.display = "block";
+  document.getElementById("ui").style.display = "block";
+  document.getElementById("mode").textContent = "Online 1v1";
+  document.getElementById("onlineHUD").style.display = "flex";
+  document.getElementById("pingDisplay").style.display = "block";
+  
+  // Setup players
+  players = [];
+  players.push({
+    x: W()/2 - 100,
+    y: H()/2,
+    r: playerRadiusSetting,
+    color: "#00ff88",
+    name: onlineAccount.name,
+    alive: true,
+    isHuman: true,
+    isOnline: true,
+    speed: 5
+  });
+  
+  players.push({
+    x: W()/2 + 100,
+    y: H()/2,
+    r: playerRadiusSetting,
+    color: "#ff8844",
+    name: vsBot ? "Online Bot" : (onlineOpponent ? onlineOpponent.name : "Opponent"),
+    alive: true,
+    isHuman: false,
+    isOnline: true,
+    isBot: vsBot,
+    speed: 4 + Math.random()
+  });
+  
+  document.getElementById("onlineNameMe").textContent = onlineAccount.name;
+  document.getElementById("onlineNameOpp").textContent = vsBot ? "Online Bot" : (onlineOpponent ? onlineOpponent.name : "Opponent");
+  
+  // Initialize balls
+  balls = [];
+  for (let i = 0; i < 3; i++) {
+    spawnOnlineBall();
+  }
+  
+  // Start game loop
+  running = true;
+  startTime = Date.now();
+  gameLoop();
+  
+  // Update status
+  updatePlayerStatus("Playing Online Match");
+}
+
+function spawnOnlineBall() {
+  const angle = Math.random() * Math.PI * 2;
+  const dist = 100 + Math.random() * 300;
+  const x = W()/2 + Math.cos(angle) * dist;
+  const y = H()/2 + Math.sin(angle) * dist;
+  const speed = 1 + Math.random() * 2 * ONLINE_BALL_SPEED;
+  const dir = Math.atan2(H()/2 - y, W()/2 - x) + (Math.random() - 0.5) * 0.5;
+  
+  balls.push({
+    x, y,
+    vx: Math.cos(dir) * speed,
+    vy: Math.sin(dir) * speed,
+    r: 15 + Math.random() * 15,
+    color: `hsl(${Math.random() * 360}, 80%, 60%)`
+  });
+}
+
+// ═══════════════════════════════════════════════
+//  GAME LOOP
+// ═══════════════════════════════════════════════
+function gameLoop() {
+  if (!running) {
+    if (gameLoopId) { cancelAnimationFrame(gameLoopId); gameLoopId = null; }
+    return;
+  }
+  update();
+  render();
+  gameLoopId = requestAnimationFrame(gameLoop);
+}
+
+function update() {
+  // Update balls
+  for (const ball of balls) {
+    ball.x += ball.vx;
+    ball.y += ball.vy;
+    
+    if (ball.x < ball.r || ball.x > W() - ball.r) ball.vx *= -1;
+    if (ball.y < ball.r || ball.y > H() - ball.r) ball.vy *= -1;
+  }
+  
+  // Update players
+  for (const player of players) {
+    if (!player.alive) continue;
+    
+    // Human player movement (online)
+    if (player.isHuman && player.isOnline) {
+      let dx = 0, dy = 0;
+      if (keys['ArrowLeft'] || keys['a']) dx = -1;
+      if (keys['ArrowRight'] || keys['d']) dx = 1;
+      if (keys['ArrowUp'] || keys['w']) dy = -1;
+      if (keys['ArrowDown'] || keys['s']) dy = 1;
+      
+      if (dx !== 0 && dy !== 0) {
+        dx *= 0.707;
+        dy *= 0.707;
+      }
+      
+      player.x += dx * player.speed;
+      player.y += dy * player.speed;
+      
+      player.x = Math.max(player.r, Math.min(W() - player.r, player.x));
+      player.y = Math.max(player.r, Math.min(H() - player.r, player.y));
+    }
+    
+    // Online bot movement
+    if (player.isBot && player.alive) {
+      // Simple AI - chase nearest ball? No, dodge balls
+      let closestBall = null;
+      let closestDist = Infinity;
+      for (const ball of balls) {
+        const dx = player.x - ball.x;
+        const dy = player.y - ball.y;
+        const dist = Math.sqrt(dx*dx + dy*dy);
+        if (dist < closestDist) {
+          closestDist = dist;
+          closestBall = ball;
+        }
+      }
+      
+      if (closestBall && closestDist < 200) {
+        const dx = player.x - closestBall.x;
+        const dy = player.y - closestBall.y;
+        const len = Math.sqrt(dx*dx + dy*dy);
+        if (len > 0) {
+          player.x += (dx / len) * 0.8;
+          player.y += (dy / len) * 0.8;
+        }
+      } else {
+        // Random wander
+        player.x += (Math.random() - 0.5) * 0.5;
+        player.y += (Math.random() - 0.5) * 0.5;
+      }
+      
+      player.x = Math.max(player.r, Math.min(W() - player.r, player.x));
+      player.y = Math.max(player.r, Math.min(H() - player.r, player.y));
+    }
+  }
+  
+  // Check collisions
+  for (const player of players) {
+    if (!player.alive) continue;
+    for (const ball of balls) {
+      const dx = player.x - ball.x;
+      const dy = player.y - ball.y;
+      const dist = Math.sqrt(dx*dx + dy*dy);
+      if (dist < player.r + ball.r) {
+        player.alive = false;
+        checkOnlineMatchEnd();
+        return;
+      }
+    }
+  }
+  
+  // Update UI
+  document.getElementById("balls").textContent = balls.length;
+}
+
+function render() {
+  ctx.clearRect(0, 0, W(), H());
+  
+  // Draw background
+  const grad = ctx.createRadialGradient(W()/2, H()/2, 0, W()/2, H()/2, W()/2);
+  grad.addColorStop(0, "#1a1a2e");
+  grad.addColorStop(1, "#0a0a0a");
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, W(), H());
+  
+  // Draw balls with glow
+  for (const ball of balls) {
+    ctx.shadowColor = ball.color;
+    ctx.shadowBlur = 30;
+    ctx.beginPath();
+    ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
+    ctx.fillStyle = ball.color;
+    ctx.fill();
+    ctx.shadowBlur = 0;
+  }
+  
+  // Draw players
+  for (const player of players) {
+    if (!player.alive) continue;
+    ctx.shadowColor = player.color;
+    ctx.shadowBlur = 20;
+    ctx.beginPath();
+    ctx.arc(player.x, player.y, player.r, 0, Math.PI * 2);
+    ctx.fillStyle = player.color;
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.strokeStyle = "#fff";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    
+    // Player name
+    ctx.fillStyle = "white";
+    ctx.font = "14px Arial";
+    ctx.textAlign = "center";
+    ctx.fillText(player.name, player.x, player.y - player.r - 10);
+  }
+}
+
+function checkOnlineMatchEnd() {
+  const alive = players.filter(p => p.alive);
+  if (alive.length <= 1) {
+    running = false;
+    const winner = alive.length === 1 ? alive[0] : null;
+    setTimeout(() => showOnlineWinner(winner), 500);
+  }
+}
+
+function showOnlineWinner(winner) {
+  document.getElementById("winnerOverlay").style.display = "flex";
+  if (winner) {
+    document.getElementById("winnerText").textContent = "🏆 " + winner.name + " Wins!";
+    document.getElementById("winnerEloChange").textContent = "";
+    
+    if (winner.isHuman) {
+      // Player won
+      if (onlineAccount) {
+        onlineAccount.wins = (onlineAccount.wins || 0) + 1;
+        const eloChange = onlineVsBot ? 5 : 15;
+        onlineAccount.elo = (onlineAccount.elo || 1500) + eloChange;
+        saveAccountLocal();
+        pushAccountToFirebase();
+        document.getElementById("winnerEloChange").textContent = "ELO +" + eloChange + " (" + onlineAccount.elo + ")";
+      }
+    } else {
+      // Player lost
+      if (onlineAccount) {
+        onlineAccount.losses = (onlineAccount.losses || 0) + 1;
+        const eloChange = onlineVsBot ? 3 : 10;
+        onlineAccount.elo = Math.max(100, (onlineAccount.elo || 1500) - eloChange);
+        saveAccountLocal();
+        pushAccountToFirebase();
+        document.getElementById("winnerEloChange").textContent = "ELO -" + eloChange + " (" + onlineAccount.elo + ")";
+      }
+    }
+  }
+  
+  document.getElementById("winnerButtons").innerHTML = `
+    <button onclick="closeWinner()">Play Again</button>
+    <button onclick="backToMenu()">🏠 Menu</button>
+  `;
+  
+  updatePlayerStatus("Idle in Menu");
+}
+
+function closeWinner() {
+  document.getElementById("winnerOverlay").style.display = "none";
+  if (onlineAccount) {
+    showOnlineFlow();
+  } else {
+    backToMenu();
+  }
+}
+
+// ═══════════════════════════════════════════════
+//  SINGLEPLAYER
 // ═══════════════════════════════════════════════
 function startGame(modeType) {
   mode = modeType;
@@ -672,8 +1029,9 @@ function startSingleplayer() {
   running = true;
   startTime = Date.now();
   document.getElementById("homeBtn").style.display = "block";
+  document.getElementById("onlineHUD").style.display = "none";
+  document.getElementById("pingDisplay").style.display = "none";
   
-  // Player
   players.push({
     x: W()/2,
     y: H()/2,
@@ -685,7 +1043,6 @@ function startSingleplayer() {
     speed: 5
   });
   
-  // Spawn initial balls
   for (let i = 0; i < startBallCount; i++) {
     spawnBall();
   }
@@ -711,121 +1068,501 @@ function spawnBall() {
 }
 
 function startSurvivalMode() {
+  survivalWave = 1;
+  let lastSpawn = 0;
+  
+  if (survivalIntervalId) clearInterval(survivalIntervalId);
   survivalIntervalId = setInterval(() => {
     if (!running) return;
     const elapsed = (Date.now() - startTime) / 1000;
     document.getElementById("time").textContent = Math.floor(elapsed);
     
-    // Record
     if (elapsed > record) {
       record = Math.floor(elapsed);
       localStorage.setItem("fingerDodgeRecord", String(record));
       document.getElementById("record").textContent = record;
     }
     
-    // Spawn balls periodically
-    if (balls.length < 50 + survivalWave * 5) {
-      spawnBall();
+    // Increase difficulty over time
+    const wave = Math.floor(elapsed / 10) + 1;
+    if (wave > survivalWave) {
+      survivalWave = wave;
+      // Spawn more balls on new wave
+      for (let i = 0; i < 3; i++) {
+        spawnBall();
+      }
     }
-  }, 1000/60);
-}
-
-// ═══════════════════════════════════════════════
-//  GAME LOOP
-// ═══════════════════════════════════════════════
-function gameLoop() {
-  if (!running) return;
-  update();
-  render();
-  requestAnimationFrame(gameLoop);
-}
-
-function update() {
-  // Update balls
-  for (const ball of balls) {
-    ball.x += ball.vx;
-    ball.y += ball.vy;
     
-    // Bounce off walls
-    if (ball.x < ball.r || ball.x > W() - ball.r) ball.vx *= -1;
-    if (ball.y < ball.r || ball.y > H() - ball.r) ball.vy *= -1;
+    // Regular spawning
+    if (balls.length < 30 + survivalWave * 3 && Date.now() - lastSpawn > spawnDelay / 2) {
+      spawnBall();
+      lastSpawn = Date.now();
+    }
+  }, 100);
+}
+
+// ═══════════════════════════════════════════════
+//  MULTIPLAYER (LOCAL)
+// ═══════════════════════════════════════════════
+function startMultiplayer() {
+  players = [];
+  balls = [];
+  running = true;
+  startTime = Date.now();
+  document.getElementById("homeBtn").style.display = "block";
+  document.getElementById("onlineHUD").style.display = "none";
+  document.getElementById("pingDisplay").style.display = "none";
+  
+  // Player 1 - WASD
+  players.push({
+    x: W()/2 - 100,
+    y: H()/2,
+    r: playerRadiusSetting,
+    color: "#00ff88",
+    name: "P1 (WASD)",
+    alive: true,
+    isHuman: true,
+    controls: { up: 'w', down: 's', left: 'a', right: 'd' },
+    speed: 5
+  });
+  
+  // Player 2 - Arrow keys
+  players.push({
+    x: W()/2 + 100,
+    y: H()/2,
+    r: playerRadiusSetting,
+    color: "#ff4444",
+    name: "P2 (Arrows)",
+    alive: true,
+    isHuman: true,
+    controls: { up: 'ArrowUp', down: 'ArrowDown', left: 'ArrowLeft', right: 'ArrowRight' },
+    speed: 5
+  });
+  
+  for (let i = 0; i < startBallCount * 1.5; i++) {
+    spawnBallMultiplayer();
   }
   
-  // Update players
-  for (const player of players) {
-    if (!player.alive) continue;
+  startMultiplayerMode();
+}
+
+function spawnBallMultiplayer() {
+  const x = Math.random() * (W() - 60) + 30;
+  const y = Math.random() * (H() - 60) + 30;
+  const speed = 0.8 + Math.random() * 1.5 * ballSpeedMultiplier;
+  const angle = Math.random() * Math.PI * 2;
+  
+  balls.push({
+    x, y,
+    vx: Math.cos(angle) * speed,
+    vy: Math.sin(angle) * speed,
+    r: 12 + Math.random() * 12,
+    color: `hsl(${Math.random() * 360}, 80%, 60%)`
+  });
+}
+
+function startMultiplayerMode() {
+  if (survivalIntervalId) clearInterval(survivalIntervalId);
+  survivalIntervalId = setInterval(() => {
+    if (!running) return;
+    const elapsed = (Date.now() - startTime) / 1000;
+    document.getElementById("time").textContent = Math.floor(elapsed);
     
-    // Human player movement
-    if (player.isHuman) {
-      let dx = 0, dy = 0;
-      if (keys['ArrowLeft'] || keys['a']) dx = -1;
-      if (keys['ArrowRight'] || keys['d']) dx = 1;
-      if (keys['ArrowUp'] || keys['w']) dy = -1;
-      if (keys['ArrowDown'] || keys['s']) dy = 1;
+    if (balls.length < 20) {
+      spawnBallMultiplayer();
+    }
+  }, 100);
+}
+
+// ═══════════════════════════════════════════════
+//  AI SPECTATE
+// ═══════════════════════════════════════════════
+function startAISpectate() {
+  players = [];
+  balls = [];
+  running = true;
+  startTime = Date.now();
+  document.getElementById("homeBtn").style.display = "block";
+  document.getElementById("onlineHUD").style.display = "none";
+  document.getElementById("pingDisplay").style.display = "none";
+  
+  // Spectator info
+  document.getElementById("spectatorInfo").style.display = "block";
+  document.getElementById("spectatorText").textContent = "Watching AI battle...";
+  
+  // Create AI players
+  for (let i = 0; i < aiBotCount; i++) {
+    const color = `hsl(${(i / aiBotCount) * 360}, 80%, 60%)`;
+    players.push({
+      x: 50 + Math.random() * (W() - 100),
+      y: 50 + Math.random() * (H() - 100),
+      r: 12 + Math.random() * 8,
+      color: color,
+      name: "AI-" + (i + 1),
+      alive: true,
+      isHuman: false,
+      isBot: true,
+      speed: 2 + Math.random() * 3,
+      targetX: 50 + Math.random() * (W() - 100),
+      targetY: 50 + Math.random() * (H() - 100)
+    });
+  }
+  
+  for (let i = 0; i < startBallCount * 2; i++) {
+    spawnBallAI();
+  }
+  
+  startAIMode();
+}
+
+function spawnBallAI() {
+  const x = Math.random() * (W() - 40) + 20;
+  const y = Math.random() * (H() - 40) + 20;
+  const speed = 0.5 + Math.random() * 1.5 * ballSpeedMultiplier;
+  const angle = Math.random() * Math.PI * 2;
+  
+  balls.push({
+    x, y,
+    vx: Math.cos(angle) * speed,
+    vy: Math.sin(angle) * speed,
+    r: 10 + Math.random() * 10,
+    color: `hsl(${Math.random() * 360}, 80%, 60%)`
+  });
+}
+
+function startAIMode() {
+  if (survivalIntervalId) clearInterval(survivalIntervalId);
+  survivalIntervalId = setInterval(() => {
+    if (!running) return;
+    const elapsed = (Date.now() - startTime) / 1000;
+    document.getElementById("time").textContent = Math.floor(elapsed);
+    
+    // AI logic - move away from nearest ball
+    for (const player of players) {
+      if (!player.alive) continue;
       
-      if (dx !== 0 && dy !== 0) {
-        dx *= 0.707;
-        dy *= 0.707;
+      let nearestBall = null;
+      let nearestDist = Infinity;
+      for (const ball of balls) {
+        const dx = player.x - ball.x;
+        const dy = player.y - ball.y;
+        const dist = Math.sqrt(dx*dx + dy*dy);
+        if (dist < nearestDist) {
+          nearestDist = dist;
+          nearestBall = ball;
+        }
       }
       
-      player.x += dx * player.speed;
-      player.y += dy * player.speed;
+      if (nearestBall && nearestDist < 150) {
+        const dx = player.x - nearestBall.x;
+        const dy = player.y - nearestBall.y;
+        const len = Math.sqrt(dx*dx + dy*dy);
+        if (len > 0) {
+          player.x += (dx / len) * player.speed;
+          player.y += (dy / len) * player.speed;
+        }
+      } else {
+        // Move to random target
+        if (Math.random() < 0.02) {
+          player.targetX = 50 + Math.random() * (W() - 100);
+          player.targetY = 50 + Math.random() * (H() - 100);
+        }
+        const dx = player.targetX - player.x;
+        const dy = player.targetY - player.y;
+        const len = Math.sqrt(dx*dx + dy*dy);
+        if (len > 5) {
+          player.x += (dx / len) * player.speed * 0.3;
+          player.y += (dy / len) * player.speed * 0.3;
+        }
+      }
       
-      // Boundary
       player.x = Math.max(player.r, Math.min(W() - player.r, player.x));
       player.y = Math.max(player.r, Math.min(H() - player.r, player.y));
-    }
-  }
-  
-  // Check collisions
-  for (const player of players) {
-    if (!player.alive) continue;
-    for (const ball of balls) {
-      const dx = player.x - ball.x;
-      const dy = player.y - ball.y;
-      const dist = Math.sqrt(dx*dx + dy*dy);
-      if (dist < player.r + ball.r) {
-        player.alive = false;
-        gameOver();
-        return;
+      
+      // Check collision with balls
+      for (const ball of balls) {
+        const dx = player.x - ball.x;
+        const dy = player.y - ball.y;
+        const dist = Math.sqrt(dx*dx + dy*dy);
+        if (dist < player.r + ball.r) {
+          player.alive = false;
+        }
       }
     }
-  }
-}
-
-function render() {
-  ctx.clearRect(0, 0, W(), H());
-  
-  // Draw balls
-  for (const ball of balls) {
-    ctx.beginPath();
-    ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
-    ctx.fillStyle = ball.color;
-    ctx.fill();
-    ctx.shadowBlur = 20;
-    ctx.shadowColor = ball.color;
-    ctx.fill();
-    ctx.shadowBlur = 0;
-  }
-  
-  // Draw players
-  for (const player of players) {
-    if (!player.alive) continue;
-    ctx.beginPath();
-    ctx.arc(player.x, player.y, player.r, 0, Math.PI * 2);
-    ctx.fillStyle = player.color;
-    ctx.fill();
-    ctx.strokeStyle = "#fff";
-    ctx.lineWidth = 2;
-    ctx.stroke();
-  }
-  
-  // UI
-  document.getElementById("balls").textContent = balls.length;
+    
+    // Spawn new balls
+    if (balls.length < 15 + aiBotCount) {
+      spawnBallAI();
+    }
+    
+    // Update spectator info
+    const alive = players.filter(p => p.alive);
+    document.getElementById("spectatorText").textContent = 
+      `${alive.length} of ${players.length} AI alive | ${balls.length} balls | Wave ${Math.floor(elapsed / 10) + 1}`;
+  }, 50);
 }
 
 // ═══════════════════════════════════════════════
-//  GAME OVER
+//  TOURNAMENT (OFFLINE)
+// ═══════════════════════════════════════════════
+function startTournament() {
+  players = [];
+  balls = [];
+  running = true;
+  startTime = Date.now();
+  document.getElementById("homeBtn").style.display = "block";
+  document.getElementById("onlineHUD").style.display = "none";
+  document.getElementById("pingDisplay").style.display = "none";
+  
+  // Create tournament participants
+  const names = ["Player", "Warrior", "Ninja", "Samurai", "Knight", "Assassin", "Ranger", "Mage"];
+  participants = [];
+  for (let i = 0; i < 8; i++) {
+    participants.push({
+      name: names[i % names.length] + (Math.floor(i / names.length) + 1),
+      elo: 1500 + Math.floor(Math.random() * 200) - 100,
+      alive: true,
+      color: `hsl(${i * 45}, 80%, 60%)`
+    });
+  }
+  
+  // Add human player
+  participants.push({
+    name: "You",
+    elo: 1500,
+    alive: true,
+    color: "#00ff88",
+    isHuman: true
+  });
+  
+  currentRound = 1;
+  matches = [];
+  runTournamentRound();
+}
+
+function runTournamentRound() {
+  const alive = participants.filter(p => p.alive);
+  if (alive.length <= 1) {
+    // Tournament over
+    const winner = alive[0];
+    document.getElementById("gameOver").style.display = "flex";
+    document.getElementById("finalTime").textContent = Math.floor((Date.now() - startTime) / 1000);
+    document.getElementById("ranking").innerHTML = `
+      <h3>🏆 ${winner.name} Wins!</h3>
+      ${participants.sort((a,b) => b.elo - a.elo).map((p, i) => 
+        `<div>${i+1}. ${p.name} (${p.elo})</div>`
+      ).join('')}
+    `;
+    running = false;
+    return;
+  }
+  
+  // Create matches for this round
+  const shuffled = alive.sort(() => Math.random() - 0.5);
+  matches = [];
+  for (let i = 0; i < shuffled.length - 1; i += 2) {
+    matches.push([shuffled[i], shuffled[i+1]]);
+  }
+  if (shuffled.length % 2 === 1) {
+    // Bye - auto advance last player
+    shuffled[shuffled.length - 1].elo += 10;
+    // Remove from shuffled and continue
+  }
+  
+  // Show match info
+  document.getElementById("mode").textContent = `Tournament Round ${currentRound}`;
+  
+  // Run matches sequentially
+  runNextMatch(0);
+}
+
+function runNextMatch(matchIndex) {
+  if (matchIndex >= matches.length) {
+    currentRound++;
+    runTournamentRound();
+    return;
+  }
+  
+  const match = matches[matchIndex];
+  // Simulate match
+  const p1 = match[0];
+  const p2 = match[1];
+  
+  // Random winner based on ELO
+  const p1Win = p1.elo > p2.elo ? 0.6 : 0.4;
+  const winner = Math.random() < p1Win ? p1 : p2;
+  const loser = winner === p1 ? p2 : p1;
+  
+  // Update ELO
+  const eloChange = 16 + Math.floor(Math.random() * 15);
+  winner.elo += eloChange;
+  loser.elo = Math.max(100, loser.elo - eloChange);
+  
+  // Show result banner
+  showMatchBanner(winner, loser, matchIndex);
+  
+  // Eliminate loser
+  loser.alive = false;
+  
+  // Record match result
+  setTimeout(() => {
+    hideMatchBanner();
+    runNextMatch(matchIndex + 1);
+  }, 2000);
+}
+
+function showMatchBanner(winner, loser, index) {
+  const banner = document.getElementById("matchResult");
+  if (!banner) {
+    // Create banner if it doesn't exist
+    const div = document.createElement("div");
+    div.id = "matchResult";
+    div.style.cssText = "position:absolute;top:20%;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.85);padding:20px 40px;border-radius:16px;color:white;z-index:35;text-align:center;border:1px solid rgba(255,255,255,0.1);";
+    document.getElementById("gameWrap").appendChild(div);
+  }
+  const bannerEl = document.getElementById("matchResult");
+  bannerEl.style.display = "block";
+  bannerEl.innerHTML = `
+    <div style="font-size:24px;font-weight:bold;color:#ffd700;">Round ${currentRound} - Match ${index + 1}</div>
+    <div style="font-size:20px;margin:10px 0;">
+      <span style="color:#00ff88;">${winner.name}</span> 
+      <span style="color:#ffd700;">defeated</span> 
+      <span style="color:#ff4444;">${loser.name}</span>
+    </div>
+    <div style="font-size:16px;color:#aaa;">
+      ${winner.name} ELO: ${winner.elo - eloChange} → ${winner.elo} (+${eloChange})
+    </div>
+  `;
+}
+
+function hideMatchBanner() {
+  const banner = document.getElementById("matchResult");
+  if (banner) banner.style.display = "none";
+}
+
+// ═══════════════════════════════════════════════
+//  COIN HUNT
+// ═══════════════════════════════════════════════
+function startCoinHunt() {
+  players = [];
+  balls = [];
+  coins = [];
+  coinScorePlayer = 0;
+  coinTimeLeft = 60;
+  running = true;
+  startTime = Date.now();
+  document.getElementById("homeBtn").style.display = "block";
+  document.getElementById("onlineHUD").style.display = "none";
+  document.getElementById("pingDisplay").style.display = "none";
+  document.getElementById("coinHUD").style.display = "block";
+  
+  players.push({
+    x: W()/2,
+    y: H()/2,
+    r: playerRadiusSetting,
+    color: "#ffd700",
+    name: "Coin Hunter",
+    alive: true,
+    isHuman: true,
+    speed: 6
+  });
+  
+  // Spawn coins
+  for (let i = 0; i < 10; i++) {
+    spawnCoin();
+  }
+  
+  // Spawn balls
+  for (let i = 0; i < 5; i++) {
+    spawnBallCoin();
+  }
+  
+  startCoinMode();
+}
+
+function spawnCoin() {
+  coins.push({
+    x: 30 + Math.random() * (W() - 60),
+    y: 30 + Math.random() * (H() - 60),
+    r: 12,
+    color: "#ffd700",
+    collected: false
+  });
+}
+
+function spawnBallCoin() {
+  const x = Math.random() * (W() - 40) + 20;
+  const y = Math.random() * (H() - 40) + 20;
+  const speed = 0.5 + Math.random() * 1.5;
+  const angle = Math.random() * Math.PI * 2;
+  
+  balls.push({
+    x, y,
+    vx: Math.cos(angle) * speed,
+    vy: Math.sin(angle) * speed,
+    r: 10 + Math.random() * 10,
+    color: `hsl(${Math.random() * 360}, 80%, 60%)`
+  });
+}
+
+function startCoinMode() {
+  if (coinIntervalId) clearInterval(coinIntervalId);
+  coinIntervalId = setInterval(() => {
+    if (!running) {
+      clearInterval(coinIntervalId);
+      return;
+    }
+    
+    coinTimeLeft--;
+    document.getElementById("coinTime").textContent = coinTimeLeft;
+    
+    // Check coin collection
+    for (const coin of coins) {
+      if (coin.collected) continue;
+      const player = players[0];
+      const dx = player.x - coin.x;
+      const dy = player.y - coin.y;
+      const dist = Math.sqrt(dx*dx + dy*dy);
+      if (dist < player.r + coin.r) {
+        coin.collected = true;
+        coinScorePlayer++;
+        document.getElementById("coinScore").textContent = coinScorePlayer;
+        spawnCoin(); // Replace collected coin
+      }
+    }
+    
+    // Spawn more balls over time
+    if (balls.length < 10 + Math.floor((60 - coinTimeLeft) / 5)) {
+      spawnBallCoin();
+    }
+    
+    // Check game over
+    if (coinTimeLeft <= 0) {
+      running = false;
+      clearInterval(coinIntervalId);
+      document.getElementById("gameOver").style.display = "flex";
+      document.getElementById("finalTime").textContent = coinScorePlayer + " coins collected";
+      document.getElementById("homeBtn").style.display = "none";
+      if (coinScorePlayer > record) {
+        record = coinScorePlayer;
+        localStorage.setItem("fingerDodgeRecord", String(record));
+        document.getElementById("record").textContent = record;
+      }
+    }
+  }, 1000);
+  
+  // Update loop for coin animation
+  const coinUpdate = setInterval(() => {
+    if (!running) {
+      clearInterval(coinUpdate);
+      return;
+    }
+    // Draw coins with sparkle
+  }, 50);
+}
+
+// ═══════════════════════════════════════════════
+//  GAME OVER & BACK TO MENU
 // ═══════════════════════════════════════════════
 function gameOver() {
   running = false;
@@ -834,12 +1571,195 @@ function gameOver() {
   document.getElementById("gameOver").style.display = "flex";
   document.getElementById("homeBtn").style.display = "none";
   clearAllTimers();
+  
+  if (mode === "ai") {
+    const alive = players.filter(p => p.alive);
+    document.getElementById("ranking").innerHTML = `
+      <h3>AI Battle Results</h3>
+      ${players.sort((a,b) => (a.alive ? 1 : 0) - (b.alive ? 1 : 0)).map(p => 
+        `<div>${p.alive ? '✅' : '❌'} ${p.name} ${p.alive ? '(Survived)' : '(Eliminated)'}</div>`
+      ).join('')}
+    `;
+  }
 }
 
 function restartGame() {
   document.getElementById("gameOver").style.display = "none";
-  startSingleplayer();
+  document.getElementById("ranking").innerHTML = "";
+  if (mode === "single") {
+    startSingleplayer();
+  } else if (mode === "multi") {
+    startMultiplayer();
+  } else if (mode === "ai") {
+    startAISpectate();
+  } else if (mode === "tournament") {
+    startTournament();
+  } else if (mode === "coin") {
+    startCoinHunt();
+  }
   gameLoop();
+}
+
+function backToMenu() {
+  clearAllTimers();
+  if (gameLoopId) { cancelAnimationFrame(gameLoopId); gameLoopId = null; }
+  if (onlineSearchInterval) { clearInterval(onlineSearchInterval); onlineSearchInterval = null; }
+  if (onlineBotMatchTimeout) { clearTimeout(onlineBotMatchTimeout); onlineBotMatchTimeout = null; }
+  running = false;
+  balls = [];
+  players = [];
+  coins = [];
+  document.getElementById("gameOver").style.display = "none";
+  document.getElementById("winnerOverlay").style.display = "none";
+  document.getElementById("matchResult")?.remove();
+  document.getElementById("menu").style.display = "flex";
+  document.getElementById("ui").style.display = "none";
+  document.getElementById("eloTable").style.display = "none";
+  document.getElementById("spectatorInfo").style.display = "none";
+  document.getElementById("coinHUD").style.display = "none";
+  document.getElementById("onlineHUD").style.display = "none";
+  document.getElementById("pingDisplay").style.display = "none";
+  document.getElementById("homeBtn").style.display = "none";
+  
+  if (fbReady && onlineAccount) {
+    updatePlayerStatus("Idle in Menu");
+  }
+  cleanupOnline();
+}
+
+function clearAllTimers() {
+  if (spawnTimeoutId) { clearTimeout(spawnTimeoutId); spawnTimeoutId = null; }
+  if (survivalIntervalId) { clearInterval(survivalIntervalId); survivalIntervalId = null; }
+  if (coinIntervalId) { clearInterval(coinIntervalId); coinIntervalId = null; }
+}
+
+function confirmHome() {
+  if (confirm("Return to main menu?")) {
+    backToMenu();
+  }
+}
+
+// ═══════════════════════════════════════════════
+//  TV MODE (ELO TABLE)
+// ═══════════════════════════════════════════════
+function setTVMode(mode) {
+  document.getElementById("eloTable").style.display = "block";
+  // Implement TV mode
+  if (mode === "best") {
+    loadBestPlayers();
+  } else if (mode === "random") {
+    loadRandomPlayers();
+  } else if (mode === "target") {
+    loadTargetPlayers();
+  }
+}
+
+async function loadBestPlayers() {
+  if (!fbReady) return;
+  const players = await dbGet("players");
+  if (!players) return;
+  const list = Object.values(players).filter(p => p.name);
+  list.sort((a,b) => (b.elo || 1500) - (a.elo || 1500));
+  const eloList = document.getElementById("eloList");
+  eloList.innerHTML = list.slice(0, 10).map((p, i) => 
+    `<div>${i+1}. ${p.name} (${p.elo || 1500})</div>`
+  ).join('');
+}
+
+async function loadRandomPlayers() {
+  if (!fbReady) return;
+  const players = await dbGet("players");
+  if (!players) return;
+  const list = Object.values(players).filter(p => p.name);
+  const shuffled = list.sort(() => Math.random() - 0.5);
+  const eloList = document.getElementById("eloList");
+  eloList.innerHTML = shuffled.slice(0, 10).map((p, i) => 
+    `<div>${i+1}. ${p.name} (${p.elo || 1500})</div>`
+  ).join('');
+}
+
+async function loadTargetPlayers() {
+  if (!fbReady || !onlineAccount) return;
+  const players = await dbGet("players");
+  if (!players) return;
+  const list = Object.values(players).filter(p => p.name && p.name !== onlineAccount.name);
+  const sorted = list.sort((a,b) => {
+    const diffA = Math.abs((a.elo || 1500) - (onlineAccount.elo || 1500));
+    const diffB = Math.abs((b.elo || 1500) - (onlineAccount.elo || 1500));
+    return diffA - diffB;
+  });
+  const eloList = document.getElementById("eloList");
+  eloList.innerHTML = sorted.slice(0, 10).map((p, i) => 
+    `<div>${i+1}. ${p.name} (${p.elo || 1500})</div>`
+  ).join('');
+}
+
+function resumePlay() {
+  document.getElementById("eloTable").style.display = "none";
+}
+
+// ═══════════════════════════════════════════════
+//  ONLINE TV (BEST ONLINE TV)
+// ═══════════════════════════════════════════════
+function startOnlineTV() {
+  if (!fbReady) { alert("Firebase not ready"); return; }
+  document.getElementById("menu").style.display = "none";
+  document.getElementById("ui").style.display = "block";
+  document.getElementById("mode").textContent = "Online TV";
+  document.getElementById("spectatorInfo").style.display = "block";
+  document.getElementById("spectatorText").textContent = "Watching best match...";
+  document.getElementById("homeBtn").style.display = "block";
+  
+  // Find best match to spectate
+  findBestMatchToSpectate();
+}
+
+async function findBestMatchToSpectate() {
+  const matches = await dbGet("onlineMatches");
+  if (!matches) {
+    document.getElementById("spectatorText").textContent = "No matches available. Waiting...";
+    setTimeout(findBestMatchToSpectate, 3000);
+    return;
+  }
+  
+  const activeMatches = Object.entries(matches).filter(([id, m]) => 
+    m.status === "started" && m.players && m.players.length >= 2
+  );
+  
+  if (activeMatches.length === 0) {
+    document.getElementById("spectatorText").textContent = "No active matches. Waiting...";
+    setTimeout(findBestMatchToSpectate, 3000);
+    return;
+  }
+  
+  // Pick highest ELO match
+  let bestMatch = null;
+  let bestElo = 0;
+  for (const [id, m] of activeMatches) {
+    const totalElo = (m.hostElo || 1500) + (m.guestElo || 1500);
+    if (totalElo > bestElo) {
+      bestElo = totalElo;
+      bestMatch = { id, data: m };
+    }
+  }
+  
+  if (bestMatch) {
+    spectateMatchId = bestMatch.id;
+    document.getElementById("spectatorText").textContent = 
+      `Spectating: ${bestMatch.data.players[0]} (ELO ${bestMatch.data.hostElo || 1500}) vs ${bestMatch.data.players[1]} (ELO ${bestMatch.data.guestElo || 1500})`;
+    
+    // Listen to match updates
+    if (onlineTvInnerUnsubscribe) onlineTvInnerUnsubscribe();
+    onlineTvInnerUnsubscribe = dbOn(`onlineMatches/${bestMatch.id}`, (data) => {
+      if (!data || data.status === "finished") {
+        document.getElementById("spectatorText").textContent = "Match ended. Finding next...";
+        setTimeout(findBestMatchToSpectate, 2000);
+      }
+    });
+  } else {
+    document.getElementById("spectatorText").textContent = "No suitable match. Waiting...";
+    setTimeout(findBestMatchToSpectate, 3000);
+  }
 }
 
 // ═══════════════════════════════════════════════
@@ -855,16 +1775,17 @@ document.addEventListener("keyup", e => {
 });
 
 // ═══════════════════════════════════════════════
-//  MOUSE/TOUCH CONTROLS FOR HUMAN PLAYER
+//  MOUSE/TOUCH CONTROLS
 // ═══════════════════════════════════════════════
 canvas.addEventListener("mousemove", (e) => {
   const pos = screenToVirtual(e.clientX, e.clientY);
-  const human = players.find(p => p.isHuman && p.alive);
-  if (human) {
-    human.x = pos.x;
-    human.y = pos.y;
-    human.x = Math.max(human.r, Math.min(W() - human.r, human.x));
-    human.y = Math.max(human.r, Math.min(H() - human.r, human.y));
+  for (const player of players) {
+    if (player.isHuman && player.alive) {
+      player.x = pos.x;
+      player.y = pos.y;
+      player.x = Math.max(player.r, Math.min(W() - player.r, player.x));
+      player.y = Math.max(player.r, Math.min(H() - player.r, player.y));
+    }
   }
 });
 
@@ -873,39 +1794,25 @@ canvas.addEventListener("touchmove", (e) => {
   const touch = e.touches[0];
   if (!touch) return;
   const pos = screenToVirtual(touch.clientX, touch.clientY);
-  const human = players.find(p => p.isHuman && p.alive);
-  if (human) {
-    human.x = pos.x;
-    human.y = pos.y;
-    human.x = Math.max(human.r, Math.min(W() - human.r, human.x));
-    human.y = Math.max(human.r, Math.min(H() - human.r, human.y));
+  for (const player of players) {
+    if (player.isHuman && player.alive) {
+      player.x = pos.x;
+      player.y = pos.y;
+      player.x = Math.max(player.r, Math.min(W() - player.r, player.x));
+      player.y = Math.max(player.r, Math.min(H() - player.r, player.y));
+    }
   }
 }, { passive: false });
 
 // ═══════════════════════════════════════════════
-//  CLEANUP ONLINE
-// ═══════════════════════════════════════════════
-function cleanupOnline() {
-  if (onlineSearchInterval) { clearInterval(onlineSearchInterval); onlineSearchInterval = null; }
-  if (onlineBotMatchTimeout) { clearTimeout(onlineBotMatchTimeout); onlineBotMatchTimeout = null; }
-  for (const unsub of onlineUnsubscribes) {
-    try { unsub(); } catch(e) {}
-  }
-  onlineUnsubscribes = [];
-  onlineMatchId = null;
-  onlineRole = null;
-  onlineOpponent = null;
-  onlineResultHandled = false;
-  onlineIsHost = false;
-  onlineVsBot = false;
-}
-
-// ═══════════════════════════════════════════════
 //  START GAME LOOP
 // ═══════════════════════════════════════════════
-gameLoop();
+// Initial state - show menu
+document.getElementById("ui").style.display = "none";
+document.getElementById("menu").style.display = "flex";
 
 console.log("DarkOnBalls initialized!");
+console.log("Available modes: Singleplayer, Multiplayer (local), AI Spectate, Tournament, Coin Hunt, Online 1v1, Online TV");
 </script>
 </body>
 </html>
